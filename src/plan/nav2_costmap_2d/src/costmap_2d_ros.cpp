@@ -378,6 +378,14 @@ Costmap2DROS::getParameters()
   get_parameter("plugins", plugin_names_);
   get_parameter("filters", filter_names_);
 
+  // Debug output to check if plugins parameter is loaded correctly
+  RCLCPP_INFO(get_logger(), "Default plugins: [%s, %s, %s]", 
+    default_plugins_[0].c_str(), default_plugins_[1].c_str(), default_plugins_[2].c_str());
+  RCLCPP_INFO(get_logger(), "Loaded plugin_names_ size: %zu", plugin_names_.size());
+  for (size_t i = 0; i < plugin_names_.size(); ++i) {
+    RCLCPP_INFO(get_logger(), "  plugin_names_[%zu]: %s", i, plugin_names_[i].c_str());
+  }
+
   auto node = shared_from_this();
 
   if (plugin_names_ == default_plugins_) {

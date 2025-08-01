@@ -15,7 +15,7 @@ local_costmap:
 
       static_layer:
         plugin: "nav2_costmap_2d::StaticLayer"
-        map_topic: "/global_map"
+        map_topic: "/map/global_map"
 
       inflation_layer:
         plugin: "nav2_costmap_2d::InflationLayer"

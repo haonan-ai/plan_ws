@@ -1,0 +1,124 @@
+#include "rclcpp/rclcpp.hpp"
+#include "rclcpp_action/rclcpp_action.hpp"
+#include "nav_msgs/msg/occupancy_grid.hpp"
+#include "nav_msgs/msg/path.hpp"
+#include "geometry_msgs/msg/pose_array.hpp"
+#include "geometry_msgs/msg/pose_stamped.hpp"
+#include "nav2_msgs/action/compute_path_through_poses.hpp"
+#include "lifecycle_msgs/srv/change_state.hpp"
+#include "lifecycle_msgs/srv/get_state.hpp"
+#include "lifecycle_msgs/msg/transition.hpp"
+#include "lifecycle_msgs/msg/state.hpp"
+#include <chrono>
+#include <thread>
+#include <memory>
+
+using namespace std::chrono_literals;
+using namespace std::placeholders;
+
+class PlanManageNode : public rclcpp::Node
+{
+public:
+  PlanManageNode()
+  : Node("plan_manage")
+  {
+    RCLCPP_INFO(this->get_logger(), "plan_manage node started");
+    
+    // Subscribe to PoseArray topic
+    pose_array_sub_ = this->create_subscription<geometry_msgs::msg::PoseArray>(
+      "/task_manager/PoseArray", 10, std::bind(&PlanManageNode::pose_array_callback, this, _1));
+    
+    // Create publisher for global_path
+    global_path_pub_ = this->create_publisher<nav_msgs::msg::Path>("/plan/global_path", 10);
+    
+    // Create action client for compute_path_through_poses
+    action_client_ = rclcpp_action::create_client<nav2_msgs::action::ComputePathThroughPoses>(
+      this, "compute_path_through_poses");
+    
+    RCLCPP_INFO(this->get_logger(), "Subscribed to /task_manager/PoseArray, will call compute_path_through_poses action and publish to /global_path");
+  }
+
+private:
+  void pose_array_callback(const geometry_msgs::msg::PoseArray::SharedPtr msg)
+  {
+    RCLCPP_INFO(this->get_logger(), "Received PoseArray with %zu poses", msg->poses.size());
+    
+    if (msg->poses.empty()) {
+      RCLCPP_WARN(this->get_logger(), "Received empty PoseArray, ignoring");
+      return;
+    }
+    
+    // Convert PoseArray to vector of PoseStamped for the action
+    std::vector<geometry_msgs::msg::PoseStamped> goals;
+    for (const auto& pose : msg->poses) {
+      geometry_msgs::msg::PoseStamped pose_stamped;
+      pose_stamped.header = msg->header;
+      pose_stamped.pose = pose;
+      goals.push_back(pose_stamped);
+    }
+    
+    // Create action goal
+    auto goal_msg = nav2_msgs::action::ComputePathThroughPoses::Goal();
+    goal_msg.goals = goals;
+    goal_msg.use_start = false;  // Use current robot pose as start
+    goal_msg.planner_id = "GridBased";  // Use GridBased planner
+    
+    // Send action goal
+    auto send_goal_options = rclcpp_action::Client<nav2_msgs::action::ComputePathThroughPoses>::SendGoalOptions();
+    send_goal_options.result_callback = std::bind(&PlanManageNode::action_result_callback, this, _1);
+    send_goal_options.feedback_callback = std::bind(&PlanManageNode::action_feedback_callback, this, _1, _2);
+    
+    RCLCPP_INFO(this->get_logger(), "Sending compute_path_through_poses action goal");
+    action_client_->async_send_goal(goal_msg, send_goal_options);
+  }
+  
+  void action_result_callback(const rclcpp_action::ClientGoalHandle<nav2_msgs::action::ComputePathThroughPoses>::WrappedResult & result)
+  {
+    switch (result.code) {
+      case rclcpp_action::ResultCode::SUCCEEDED:
+        RCLCPP_INFO(this->get_logger(), "Action succeeded! Path computed successfully");
+        
+        // Publish the computed path to /global_path topic
+        if (result.result->path.poses.size() > 0) {
+          global_path_pub_->publish(result.result->path);
+          RCLCPP_INFO(this->get_logger(), "Published path with %zu poses to /global_path", 
+                     result.result->path.poses.size());
+        } else {
+          RCLCPP_WARN(this->get_logger(), "Computed path is empty");
+        }
+        break;
+        
+      case rclcpp_action::ResultCode::ABORTED:
+        RCLCPP_ERROR(this->get_logger(), "Action was aborted");
+        break;
+        
+      case rclcpp_action::ResultCode::CANCELED:
+        RCLCPP_WARN(this->get_logger(), "Action was canceled");
+        break;
+        
+      default:
+        RCLCPP_ERROR(this->get_logger(), "Unknown result code");
+        break;
+    }
+  }
+  
+  void action_feedback_callback(
+    rclcpp_action::ClientGoalHandle<nav2_msgs::action::ComputePathThroughPoses>::SharedPtr,
+    const std::shared_ptr<const nav2_msgs::action::ComputePathThroughPoses::Feedback> feedback)
+  {
+    (void)feedback;  // Suppress unused parameter warning
+    RCLCPP_INFO(this->get_logger(), "Action feedback received");
+  }
+  
+  rclcpp::Subscription<geometry_msgs::msg::PoseArray>::SharedPtr pose_array_sub_;
+  rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr global_path_pub_;
+  rclcpp_action::Client<nav2_msgs::action::ComputePathThroughPoses>::SharedPtr action_client_;
+};
+
+int main(int argc, char ** argv)
+{
+  rclcpp::init(argc, argv);
+  rclcpp::spin(std::make_shared<PlanManageNode>());
+  rclcpp::shutdown();
+  return 0;
+}

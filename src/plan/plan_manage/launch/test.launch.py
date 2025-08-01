@@ -13,94 +13,82 @@ def generate_launch_description():
         executable='rviz2',
         name='rviz2',
         output='screen',
-        arguments=['-d','/home/jack/plan_ws/config/rviz_config.rviz'],)
+        arguments=['-d', PathJoinSubstitution([
+            FindPackageShare('plan_manage'),
+            'config',
+            'rviz_config.rviz'
+        ])])
 
     static_map_to_odom = Node(
         package='tf2_ros',
         executable='static_transform_publisher',
         name='map_to_odom',
+        namespace='localization',
         arguments=[
             '--frame-id', 'map',
             '--child-frame-id', 'odom',
             '--x', '0.0', '--y', '0.0', '--z', '0.0',
             '--roll', '0.0', '--pitch', '0.0', '--yaw', '0.0'],
         output='screen')
-
+    
+    static_odom_to_base = Node(
+        package='tf2_ros',
+        executable='static_transform_publisher',
+        name='odom_to_base',
+        namespace='localization',
+        arguments=[
+            '--frame-id', 'odom',
+            '--child-frame-id', 'base_link',
+            '--x', '4.7', '--y', '4.7', '--z', '0.0',
+            '--roll', '0.0', '--pitch', '0.0', '--yaw', '0.0'],
+        output='screen')
+    
     declare_map = DeclareLaunchArgument(
         'map_params',
-        default_value='/home/jack/plan_ws/map/map.yaml',
+        default_value=PathJoinSubstitution([
+            FindPackageShare('plan_manage'),
+            'map',
+            'map.yaml'
+        ]),
         description='Absolute path to map .yaml')
-    declare_global_plan_params = DeclareLaunchArgument(
-        'global_plan_params',
-        default_value='/home/jack/plan_ws/config/global_plan.yaml',
-        description='global_plan_parameters .yaml')
-    declare_local_plan_params = DeclareLaunchArgument(
-        'local_plan_params',
-        default_value='/home/jack/plan_ws/config/local_plan.yaml',
-        description='Full path to the MPPI controller param file.')
     
     map_yaml = LaunchConfiguration('map_params')
-    global_plan_yaml = LaunchConfiguration('global_plan_params')
-    local_plan_yaml = LaunchConfiguration('local_plan_params')
 
     map_server = Node(
         package='nav2_map_server',
         executable='map_server',
         name='map_server',
+        namespace='map',
         output='screen',
         parameters=[{'yaml_filename': map_yaml, 'topic_name': 'global_map'}])
-
-    global_plan_server = Node(
-        package='nav2_planner',
-        executable='planner_server',
-        name='global_plan_server',
-        output='screen',
-        parameters=[global_plan_yaml])
-    
-    local_plan_server = Node(
-        package='nav2_controller',
-        executable='controller_server',
-        name='local_plan_server',
-        output='screen',
-        parameters=[local_plan_yaml])
 
     lifecycle_mgr = Node(
         package='nav2_lifecycle_manager',
         executable='lifecycle_manager',
         name='lifecycle_manager',
         output='screen',
+        namespace='map',
         parameters=[{
             'autostart': True,
             'node_names': [
-                'map_server',
-                'global_plan_server',
-                'local_plan_server',
+                'map_server'
                 ]}])
 
-    plan_manage = Node(
-        package='plan_package',
-        executable='plan_manage',
-        name='plan_manage',
-        output='screen')
-
-    obstacle_manager = Node(
-        package='plan_package',
-        executable='obstacle_manager',
-        name='obstacle_manager',
+    test_node = Node(
+        package='plan_manage',
+        executable='test_node',
+        name='test_node',
+        namespace='map',
         output='screen')
 
     return LaunchDescription([
         rviz_node,
         static_map_to_odom,
-        plan_manage,
-        obstacle_manager,
+        static_odom_to_base,
 
         declare_map,
-        declare_global_plan_params,
-        declare_local_plan_params,
         map_server,
-        global_plan_server,
-        local_plan_server,
 
         lifecycle_mgr,
+        test_node
         ])
