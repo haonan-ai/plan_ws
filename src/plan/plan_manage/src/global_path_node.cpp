@@ -16,20 +16,20 @@
 using namespace std::chrono_literals;
 using namespace std::placeholders;
 
-class PlanManageNode : public rclcpp::Node
+class GlobalPathNode : public rclcpp::Node
 {
 public:
-  PlanManageNode()
-  : Node("plan_manage")
+  GlobalPathNode()
+  : Node("global_path_node")
   {
-    RCLCPP_INFO(this->get_logger(), "plan_manage node started");
+    RCLCPP_INFO(this->get_logger(), "global path node started");
     
     // Subscribe to PoseArray topic
     pose_array_sub_ = this->create_subscription<geometry_msgs::msg::PoseArray>(
-      "/task_manager/PoseArray", 10, std::bind(&PlanManageNode::pose_array_callback, this, _1));
+      "/task_manager/PoseArray", 10, std::bind(&GlobalPathNode::pose_array_callback, this, _1));
     
     // Create publisher for global_path
-    global_path_pub_ = this->create_publisher<nav_msgs::msg::Path>("/plan/global_path", 10);
+    global_path_pub_ = this->create_publisher<nav_msgs::msg::Path>("global_path", 10);
     
     // Create action client for compute_path_through_poses
     action_client_ = rclcpp_action::create_client<nav2_msgs::action::ComputePathThroughPoses>(
@@ -65,11 +65,23 @@ private:
     
     // Send action goal
     auto send_goal_options = rclcpp_action::Client<nav2_msgs::action::ComputePathThroughPoses>::SendGoalOptions();
-    send_goal_options.result_callback = std::bind(&PlanManageNode::action_result_callback, this, _1);
-    send_goal_options.feedback_callback = std::bind(&PlanManageNode::action_feedback_callback, this, _1, _2);
+    send_goal_options.result_callback = std::bind(&GlobalPathNode::action_result_callback, this, _1);
+    send_goal_options.goal_response_callback = std::bind(&GlobalPathNode::action_goal_response_callback, this, _1);
+    send_goal_options.feedback_callback = std::bind(&GlobalPathNode::action_feedback_callback, this, _1, _2);
     
     RCLCPP_INFO(this->get_logger(), "Sending compute_path_through_poses action goal");
     action_client_->async_send_goal(goal_msg, send_goal_options);
+  }
+  
+  void action_goal_response_callback(
+      const rclcpp_action::ClientGoalHandle<nav2_msgs::action::ComputePathThroughPoses>::SharedPtr & goal_handle)
+  {
+    if (!goal_handle) {
+      RCLCPP_ERROR(this->get_logger(), "ComputePathThroughPoses goal was rejected by server");
+    } else {
+      RCLCPP_INFO(this->get_logger(), "ComputePathThroughPoses goal accepted by server");
+      current_goal_handle_ = goal_handle;
+    }
   }
   
   void action_result_callback(const rclcpp_action::ClientGoalHandle<nav2_msgs::action::ComputePathThroughPoses>::WrappedResult & result)
@@ -100,6 +112,9 @@ private:
         RCLCPP_ERROR(this->get_logger(), "Unknown result code");
         break;
     }
+    
+    // 清除当前goal handle
+    current_goal_handle_.reset();
   }
   
   void action_feedback_callback(
@@ -113,12 +128,13 @@ private:
   rclcpp::Subscription<geometry_msgs::msg::PoseArray>::SharedPtr pose_array_sub_;
   rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr global_path_pub_;
   rclcpp_action::Client<nav2_msgs::action::ComputePathThroughPoses>::SharedPtr action_client_;
+  rclcpp_action::ClientGoalHandle<nav2_msgs::action::ComputePathThroughPoses>::SharedPtr current_goal_handle_;
 };
 
 int main(int argc, char ** argv)
 {
   rclcpp::init(argc, argv);
-  rclcpp::spin(std::make_shared<PlanManageNode>());
+  rclcpp::spin(std::make_shared<GlobalPathNode>());
   rclcpp::shutdown();
   return 0;
 }

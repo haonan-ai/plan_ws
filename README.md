@@ -16,15 +16,22 @@ rosdep install -r -y --from-paths ./src --ignore-src
 # 编译工作空间
 colcon build --symlink-install
 
-# 启动系统
-ros2 launch plan_launch plan_launch.py
+# 运行
+ros2 launch plan_manage test_node.launch.py
+ros2 launch plan_manage plan.launch.py
 ```
+# launch文件
+
+## test_node.launch.py
+- 启动Rviz2
+- 读取map.pgm，发布topic：/map/global_map
+- 收到/clicked_point后发布/task_manager/PoseArray
+- 收到/plan/cmd_vel后，更新车辆位姿，发布/tf
+## plan.launch.py
+- 收到/task_manager/PoseArray，发布/plan/global_path
+- 订阅/plan/global_path，输出控制指令：/plan/cmd_vel
 
 # 使用说明
+
 启动后，在 RViz 中使用以下工具：
-
-- 2D Pose Estimate：设置机器人初始位置
-
-- 2D Goal Pose：设置目标位置，触发路径规划
-
-- Publish Point：点击地图放置障碍物
+- Publish Point：模拟发布多途径点，开始路径规划

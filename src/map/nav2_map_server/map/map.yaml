@@ -1,7 +1,7 @@
 image: map.pgm     # PGM 文件相对路径
 resolution: 0.1               # 地图分辨率  (m/像素)
-origin: [-5.0, -5.0, 0.0]
+origin: [0.0, 0.0, 0.0]
 negate: 0                      # 0=原图黑墙白地, 1=反色
 occupied_thresh: 0.65          # >0.65 记为障碍
-free_thresh: 0.196             # <0.196 记为空闲
+free_thresh: 0.33             # <0.196 记为空闲
 mode: trinary                  # 三值化

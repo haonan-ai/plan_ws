@@ -12,6 +12,7 @@ def generate_launch_description():
         package='rviz2',
         executable='rviz2',
         name='rviz2',
+        namespace='test',
         output='screen',
         arguments=['-d', PathJoinSubstitution([
             FindPackageShare('plan_manage'),
@@ -19,34 +20,17 @@ def generate_launch_description():
             'rviz_config.rviz'
         ])])
 
-    static_map_to_odom = Node(
-        package='tf2_ros',
-        executable='static_transform_publisher',
-        name='map_to_odom',
-        namespace='localization',
-        arguments=[
-            '--frame-id', 'map',
-            '--child-frame-id', 'odom',
-            '--x', '0.0', '--y', '0.0', '--z', '0.0',
-            '--roll', '0.0', '--pitch', '0.0', '--yaw', '0.0'],
+    test_node = Node(
+        package='plan_manage',
+        executable='test_node',
+        name='test_node',
+        namespace='test',
         output='screen')
-    
-    static_odom_to_base = Node(
-        package='tf2_ros',
-        executable='static_transform_publisher',
-        name='odom_to_base',
-        namespace='localization',
-        arguments=[
-            '--frame-id', 'odom',
-            '--child-frame-id', 'base_link',
-            '--x', '4.7', '--y', '4.7', '--z', '0.0',
-            '--roll', '0.0', '--pitch', '0.0', '--yaw', '0.0'],
-        output='screen')
-    
+
     declare_map = DeclareLaunchArgument(
         'map_params',
         default_value=PathJoinSubstitution([
-            FindPackageShare('plan_manage'),
+            FindPackageShare('nav2_map_server'),
             'map',
             'map.yaml'
         ]),
@@ -73,22 +57,10 @@ def generate_launch_description():
             'node_names': [
                 'map_server'
                 ]}])
-
-    test_node = Node(
-        package='plan_manage',
-        executable='test_node',
-        name='test_node',
-        namespace='map',
-        output='screen')
-
     return LaunchDescription([
         rviz_node,
-        static_map_to_odom,
-        static_odom_to_base,
-
+        test_node,
         declare_map,
         map_server,
-
-        lifecycle_mgr,
-        test_node
+        lifecycle_mgr
         ])
