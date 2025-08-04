@@ -14,7 +14,8 @@ cd plan_ws
 rosdep install -r -y --from-paths ./src --ignore-src
 
 # 编译工作空间
-colcon build --symlink-install
+colcon build --symlink-installs
+source install/setup.bash
 
 # 运行
 ros2 launch plan_manage test_node.launch.py

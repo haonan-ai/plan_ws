@@ -7,7 +7,7 @@ plan:
         resolution: 0.05
         rolling_window: true
 
-        footprint: "[[0.22, 0.18], [0.22, -0.18], [-0.22, -0.18], [-0.22, 0.18]]"
+        robot_radius: 0.25
         footprint_padding: 0.02
 
         plugins:
