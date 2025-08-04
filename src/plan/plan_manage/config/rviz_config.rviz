@@ -194,8 +194,7 @@ Visualization Manager:
       Enabled: true
       Name: MarkerArray
       Namespaces:
-        Candidate Trajectories: true
-        Optimal Trajectory: true
+        {}
       Topic:
         Depth: 5
         Durability Policy: Volatile
@@ -256,9 +255,9 @@ Visualization Manager:
         Swap Stereo Eyes: false
         Value: false
       Focal Point:
-        X: 4.8261189460754395
-        Y: 5.047790050506592
-        Z: -5.131627559661865
+        X: 25.22964096069336
+        Y: 16.07314109802246
+        Z: -5.120722770690918
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
@@ -267,7 +266,7 @@ Visualization Manager:
       Pitch: 1.5697963237762451
       Target Frame: <Fixed Frame>
       Value: Orbit (rviz_default_plugins)
-      Yaw: 4.718550205230713
+      Yaw: 4.718557357788086
     Saved: ~
 Window Geometry:
   Displays:
