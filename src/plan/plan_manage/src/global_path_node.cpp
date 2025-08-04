@@ -26,7 +26,7 @@ public:
     
     // Subscribe to PoseArray topic
     pose_array_sub_ = this->create_subscription<geometry_msgs::msg::PoseArray>(
-      "/task_manager/PoseArray", 10, std::bind(&GlobalPathNode::pose_array_callback, this, _1));
+      "/task_manager/pose_array", 10, std::bind(&GlobalPathNode::pose_array_callback, this, _1));
     
     // Create publisher for global_path
     global_path_pub_ = this->create_publisher<nav_msgs::msg::Path>("global_path", 10);

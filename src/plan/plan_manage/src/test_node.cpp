@@ -27,7 +27,7 @@ public:
       "/plan/cmd_vel", 10, std::bind(&TestNode::cmd_vel_callback, this, std::placeholders::_1));
     
     // Create publisher for PoseArray
-    pose_array_pub_ = this->create_publisher<geometry_msgs::msg::PoseArray>("/task_manager/PoseArray", 10);
+    pose_array_pub_ = this->create_publisher<geometry_msgs::msg::PoseArray>("/task_manager/pose_array", 10);
 
     tf_broadcaster_ = std::make_unique<tf2_ros::TransformBroadcaster>(*this);
 
