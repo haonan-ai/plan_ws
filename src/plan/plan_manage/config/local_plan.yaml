@@ -22,7 +22,6 @@ plan:
           enabled: true
           local_map_topic: "/perception/occupancy_grid_map/local_map"
           transform_tolerance: 0.2
-          footprint_clearing_enabled: false
           track_unknown_space: true
           use_maximum: false
           lethal_cost_threshold: 100

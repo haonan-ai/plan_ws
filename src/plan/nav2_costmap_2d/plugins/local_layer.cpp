@@ -127,39 +127,12 @@ LocalLayer::processLocalMap(const nav_msgs::msg::OccupancyGrid & new_map)
       new_map.info.origin.position.x, new_map.info.origin.position.y);
   }
 
-  unsigned int index = 0;
   std::lock_guard<Costmap2D::mutex_t> guard(*getMutex());
 
-  // 统计不同值的数量
-  int free_count = 0, occupied_count = 0, unknown_count = 0;
-  int costmap_free = 0, costmap_occupied = 0, costmap_unknown = 0;
-
-  for (unsigned int i = 0; i < size_y; ++i) {
-    for (unsigned int j = 0; j < size_x; ++j) {
-      int8_t value = new_map.data[index];
-      unsigned char cost_value = interpretValue(value);
-      costmap_[index] = cost_value;
-      
-      // 统计不同值的数量
-      if (value == nav2_util::OCC_GRID_FREE) {
-        free_count++;
-      } else if (value == nav2_util::OCC_GRID_OCCUPIED) {
-        occupied_count++;
-      } else if (value == nav2_util::OCC_GRID_UNKNOWN) {
-        unknown_count++;
-      }
-      
-      // 统计 costmap 值的数量
-      if (cost_value == FREE_SPACE) {
-        costmap_free++;
-      } else if (cost_value == LETHAL_OBSTACLE) {
-        costmap_occupied++;
-      } else if (cost_value == NO_INFORMATION) {
-        costmap_unknown++;
-      }
-      
-      ++index;
-    }
+  // Process map data efficiently
+  const size_t total_size = size_x * size_y;
+  for (size_t index = 0; index < total_size; ++index) {
+    costmap_[index] = interpretValue(new_map.data[index]);
   }
 
   map_frame_ = new_map.header.frame_id;
@@ -181,7 +154,7 @@ LocalLayer::matchSize()
       master->getSizeInCellsX(), master->getSizeInCellsY(), master->getResolution(),
       master->getOriginX(), master->getOriginY());
   }
-  // 在滚动窗口模式下，我们不需要调整大小，因为 local_layer 有自己的地图大小
+  // In rolling window mode, no resize needed as local_layer has its own map size
 }
 
 unsigned char
@@ -194,7 +167,7 @@ LocalLayer::interpretValue(int8_t value)
   } else if (value == nav2_util::OCC_GRID_UNKNOWN) {
     return NO_INFORMATION;
   } else {
-    // 对于其他值，使用阈值判断
+    // For other values, use threshold-based judgment
     if (track_unknown_space_ && value == unknown_cost_value_) {
       return NO_INFORMATION;
     } else if (!track_unknown_space_ && value == unknown_cost_value_) {
@@ -204,7 +177,7 @@ LocalLayer::interpretValue(int8_t value)
     } else if (trinary_costmap_) {
       return FREE_SPACE;
     } else {
-      // 线性缩放
+      // Linear scaling
       double scale = static_cast<double>(value) / lethal_threshold_;
       unsigned char result = static_cast<unsigned char>(scale * LETHAL_OBSTACLE);
       return result;
@@ -215,7 +188,7 @@ LocalLayer::interpretValue(int8_t value)
 void
 LocalLayer::incomingLocalMap(const nav_msgs::msg::OccupancyGrid::SharedPtr new_map)
 {
-  // 简单的消息验证
+  // Simple message validation
   if (!new_map) {
     RCLCPP_ERROR(logger_, "Received local map message is null. Rejecting.");
     return;
@@ -306,11 +279,6 @@ LocalLayer::updateCosts(
     return;
   }
   if (!map_received_in_update_bounds_) {
-    static int count = 0;
-    if (++count == 10) {
-      RCLCPP_WARN(logger_, "Can't update local costmap layer, no map received");
-      count = 0;
-    }
     return;
   }
 
@@ -321,12 +289,12 @@ LocalLayer::updateCosts(
   if (!layered_costmap_->isRolling()) {
     // if not rolling, the layered costmap (master_grid) has same coordinates as this layer
     
-    // 用local_layer的已知信息覆盖static_layer的结果
+    // Override static_layer with local_layer known information
     for (int i = min_i; i < max_i; ++i) {
       for (int j = min_j; j < max_j; ++j) {
         unsigned char local_cost = getCost(i, j);
         
-        // 只有当local_layer提供的是已知信息（占据或自由）时才更新
+        // Only update when local_layer provides known information (occupied or free)
         if (local_cost == LETHAL_OBSTACLE || local_cost == FREE_SPACE) {
           if (!use_maximum_) {
             master_grid.setCost(i, j, local_cost);
@@ -334,7 +302,7 @@ LocalLayer::updateCosts(
             master_grid.setCost(i, j, std::max(local_cost, master_grid.getCost(i, j)));
           }
         }
-        // 对于未知区域（NO_INFORMATION），保持master_grid中的原值（来自static_layer）
+        // For unknown areas (NO_INFORMATION), keep original values from static_layer
       }
     }
   } else {
@@ -354,8 +322,6 @@ LocalLayer::updateCosts(
     // Copy map data given proper transformations
     tf2::Transform tf2_transform;
     tf2::fromMsg(transform.transform, tf2_transform);
-
-    int updated_cells = 0;
     for (int i = min_i; i < max_i; ++i) {
       for (int j = min_j; j < max_j; ++j) {
         // Convert master_grid coordinates (i,j) into global_frame_(wx,wy) coordinates
@@ -367,16 +333,15 @@ LocalLayer::updateCosts(
         if (worldToMap(p.x(), p.y(), mx, my)) {
           unsigned char local_cost = getCost(mx, my);
           
-          // 只有当local_layer提供的是已知信息（占据或自由）时才更新
+          // Only update when local_layer provides known information (occupied or free)
           if (local_cost == LETHAL_OBSTACLE || local_cost == FREE_SPACE) {
             if (!use_maximum_) {
               master_grid.setCost(i, j, local_cost);
             } else {
               master_grid.setCost(i, j, std::max(local_cost, master_grid.getCost(i, j)));
             }
-            updated_cells++;
           }
-          // 对于未知区域（NO_INFORMATION），保持master_grid中的原值（来自static_layer）
+          // For unknown areas (NO_INFORMATION), keep original values from static_layer
         }
       }
     }

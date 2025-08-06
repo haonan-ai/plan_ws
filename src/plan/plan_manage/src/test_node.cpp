@@ -41,7 +41,7 @@ public:
       std::bind(&TestNode::broadcast_transform, this));
     
     // 声明参数
-    this->declare_parameter<double>("map_width", 3.0);        // 地图边长，单位米
+    this->declare_parameter<double>("map_width", 4);        // 地图边长，单位米
     this->declare_parameter<double>("map_resolution", 0.05);    // 分辨率，单位米/像素
     this->get_parameter("map_width", map_width_);
     this->get_parameter("map_resolution", map_resolution_);
