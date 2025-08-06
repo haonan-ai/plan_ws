@@ -7,10 +7,11 @@ from launch.conditions import IfCondition
 from launch.actions import SetEnvironmentVariable
 
 def generate_launch_description():
-    global_path_node = Node(
+
+    plan_manage_node = Node(
         package='plan_manage',
-        executable='global_path_node',
-        name='global_path_node',
+        executable='plan_manage_node',
+        name='plan_manage_node',
         namespace='plan',
         output='screen')
 
@@ -22,9 +23,7 @@ def generate_launch_description():
             'global_plan.yaml'
         ]),
         description='global_plan_parameters .yaml')
-
     global_plan_yaml = LaunchConfiguration('global_plan_params')
-
     global_plan_server = Node(
         package='nav2_planner',
         executable='planner_server',
@@ -34,10 +33,10 @@ def generate_launch_description():
         parameters=[global_plan_yaml],
         )
     
-    plan_manage_node = Node(
+    global_path_node = Node(
         package='plan_manage',
-        executable='plan_manage_node',
-        name='plan_manage_node',
+        executable='global_path_node',
+        name='global_path_node',
         namespace='plan',
         output='screen')
 
@@ -49,9 +48,7 @@ def generate_launch_description():
             'local_plan.yaml'
         ]),
         description='Full path to the MPPI controller param file.')
-
     local_plan_yaml = LaunchConfiguration('local_plan_params')
-
     local_plan_server = Node(
         package='nav2_controller',
         executable='controller_server',
@@ -75,12 +72,12 @@ def generate_launch_description():
                 ]}])
 
     return LaunchDescription([
-        global_path_node,
-
+        plan_manage_node,
+        
         declare_global_plan_params,
         global_plan_server,
         
-        plan_manage_node,
+        global_path_node,
 
         declare_local_plan_params,
         local_plan_server,
