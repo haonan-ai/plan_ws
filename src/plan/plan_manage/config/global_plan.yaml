@@ -17,6 +17,7 @@ plan:
       ros__parameters:
         global_frame: map
         robot_base_frame: base_link
+        robot_radius: 0.25
         plugins: ["static_layer", "inflation_layer"]
 
         static_layer:
@@ -26,5 +27,5 @@ plan:
 
         inflation_layer:
           plugin: "nav2_costmap_2d::InflationLayer"
-          inflation_radius: 0.5
+          inflation_radius: 0.3
           cost_scaling_factor: 3.0 

@@ -9,6 +9,9 @@
     <class type="nav2_costmap_2d::StaticLayer"     base_class_type="nav2_costmap_2d::Layer">
       <description>Listens to OccupancyGrid messages and copies them in, like from map_server.</description>
     </class>
+    <class type="nav2_costmap_2d::LocalLayer"     base_class_type="nav2_costmap_2d::Layer">
+      <description>Listens to real-time OccupancyGrid messages from perception system and updates costmap with trusted FREE and OCCUPIED values.</description>
+    </class>
     <class type="nav2_costmap_2d::VoxelLayer"     base_class_type="nav2_costmap_2d::Layer">
       <description>Similar to obstacle costmap, but uses 3D voxel grid to store data.</description>
     </class>

@@ -70,8 +70,8 @@ def generate_launch_description():
         parameters=[{
             'autostart': True,
             'node_names': [
+                'global_plan_server',
                 'local_plan_server',
-                'global_plan_server'
                 ]}])
 
     return LaunchDescription([
