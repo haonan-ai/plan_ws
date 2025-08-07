@@ -104,8 +104,17 @@ LocalLayer::processLocalMap(const nav_msgs::msg::OccupancyGrid & new_map)
   unsigned int size_x = new_map.info.width;
   unsigned int size_y = new_map.info.height;
 
+  // Store the frame_id for later use
+  map_frame_ = new_map.header.frame_id;
+  
+  // Check if the map is in base_link frame
+  bool is_base_link_frame = (map_frame_ == "base_link");
+  
   Costmap2D * master = layered_costmap_->getCostmap();
-  if (!layered_costmap_->isRolling() && (master->getSizeInCellsX() != size_x ||
+  
+  // For base_link frame, we don't resize the master costmap as it should be in map frame
+  // For map frame, we follow the original logic
+  if (!is_base_link_frame && !layered_costmap_->isRolling() && (master->getSizeInCellsX() != size_x ||
     master->getSizeInCellsY() != size_y ||
     master->getResolution() != new_map.info.resolution ||
     master->getOriginX() != new_map.info.origin.position.x ||
@@ -135,7 +144,6 @@ LocalLayer::processLocalMap(const nav_msgs::msg::OccupancyGrid & new_map)
     costmap_[index] = interpretValue(new_map.data[index]);
   }
 
-  map_frame_ = new_map.header.frame_id;
   x_ = y_ = 0;
   width_ = size_x_;
   height_ = size_y_;
@@ -286,7 +294,62 @@ LocalLayer::updateCosts(
     setConvexPolygonCost(transformed_footprint_, nav2_costmap_2d::FREE_SPACE);
   }
 
-  if (!layered_costmap_->isRolling()) {
+  // Check if the map is in base_link frame
+  bool is_base_link_frame = (map_frame_ == "base_link");
+
+  if (is_base_link_frame) {
+    // Handle base_link frame: transform local map data to map frame
+    unsigned int mx, my;
+    
+    // Get transform from base_link to map frame
+    geometry_msgs::msg::TransformStamped transform;
+    try {
+      transform = tf_->lookupTransform(
+        "map", "base_link", tf2::TimePointZero,
+        transform_tolerance_);
+    } catch (tf2::TransformException & ex) {
+      RCLCPP_ERROR(logger_, "LocalLayer: %s", ex.what());
+      return;
+    }
+    
+    // Copy map data given proper transformations
+    tf2::Transform tf2_transform;
+    tf2::fromMsg(transform.transform, tf2_transform);
+    
+    // Iterate through the local map (base_link frame)
+    for (unsigned int local_i = 0; local_i < size_x_; ++local_i) {
+      for (unsigned int local_j = 0; local_j < size_y_; ++local_j) {
+        // Convert local map coordinates to world coordinates in base_link frame
+        double local_wx, local_wy;
+        mapToWorld(local_i, local_j, local_wx, local_wy);
+        
+        // Transform from base_link frame to map frame
+        tf2::Vector3 p(local_wx, local_wy, 0);
+        p = tf2_transform * p;
+        
+        // Convert map frame world coordinates to master grid coordinates
+        if (layered_costmap_->getCostmap()->worldToMap(p.x(), p.y(), mx, my)) {
+          // Check if the transformed coordinates are within the update bounds
+          if (mx >= static_cast<unsigned int>(min_i) && mx < static_cast<unsigned int>(max_i) &&
+              my >= static_cast<unsigned int>(min_j) && my < static_cast<unsigned int>(max_j)) {
+            
+            unsigned char local_cost = getCost(local_i, local_j);
+            
+            // Only update when local_layer provides known information (occupied or free)
+            if (local_cost == LETHAL_OBSTACLE || local_cost == FREE_SPACE) {
+              if (!use_maximum_) {
+                master_grid.setCost(mx, my, local_cost);
+              } else {
+                master_grid.setCost(mx, my, std::max(local_cost, master_grid.getCost(mx, my)));
+              }
+            }
+            // For unknown areas (NO_INFORMATION), keep original values from static_layer
+          }
+        }
+      }
+    }
+  } else if (!layered_costmap_->isRolling()) {
+    // Original logic for map frame when not rolling
     // if not rolling, the layered costmap (master_grid) has same coordinates as this layer
     
     // Override static_layer with local_layer known information
@@ -306,6 +369,7 @@ LocalLayer::updateCosts(
       }
     }
   } else {
+    // Original logic for rolling window with map frame
     // If rolling window, the master_grid is unlikely to have same coordinates as this layer
     unsigned int mx, my;
     double wx, wy;

@@ -14,6 +14,7 @@
 #include <thread>
 #include <memory>
 #include <atomic>
+#include <mutex>
 
 using namespace std::chrono_literals;
 using namespace std::placeholders;
@@ -37,6 +38,8 @@ public:
   }
 
 private:
+  nav_msgs::msg::Path::SharedPtr pending_path_;
+  std::mutex path_mutex_;
   void global_path_callback(const nav_msgs::msg::Path::SharedPtr msg)
   {
     RCLCPP_INFO(this->get_logger(), "Received global_path");
@@ -48,7 +51,12 @@ private:
     
     // 如果已经有目标在执行中，忽略新的路径
     if (goal_in_progress_.load()) {
-      RCLCPP_WARN(this->get_logger(), "Goal already in progress, ignoring new path");
+      RCLCPP_WARN(this->get_logger(), "Goal already in progress, canceling and updating to new path");
+      pending_path_ = msg;
+      if (current_goal_handle_) {
+        auto future = follow_path_client_->async_cancel_goal(current_goal_handle_);
+        // Optionally, add a callback to handle cancel result
+      }
       return;
     }
     
@@ -110,6 +118,13 @@ private:
     // 清除当前goal handle和状态
     current_goal_handle_.reset();
     goal_in_progress_ = false;
+    // 检查是否有待处理的新路径
+    std::lock_guard<std::mutex> lock(path_mutex_);
+    if (pending_path_) {
+      RCLCPP_INFO(this->get_logger(), "Sending pending global_path after cancel");
+      send_follow_path_goal(*pending_path_);
+      pending_path_.reset();
+    }
   }
 
   rclcpp::Subscription<nav_msgs::msg::Path>::SharedPtr global_path_sub_;

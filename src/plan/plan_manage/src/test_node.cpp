@@ -173,7 +173,7 @@ private:
   void initialize_occupancy_grid()
   {
     // 设置消息头
-    fixed_occupancy_grid_.header.frame_id = "map";
+    fixed_occupancy_grid_.header.frame_id = "base_link";
     
     // 计算像素宽高
     int pixel_width = static_cast<int>(map_width_ / map_resolution_);
@@ -181,7 +181,7 @@ private:
     fixed_occupancy_grid_.info.width = pixel_width;
     fixed_occupancy_grid_.info.height = pixel_width;
     
-    // 设置地图原点（左下角，初始化时以机器人为中心，后续实时更新）
+    // 设置地图原点（左下角，以base_link坐标系为参考，机器人在地图中心）
     fixed_occupancy_grid_.info.origin.position.x = -map_width_ / 2.0;
     fixed_occupancy_grid_.info.origin.position.y = -map_width_ / 2.0;
     fixed_occupancy_grid_.info.origin.position.z = 0.0;
@@ -226,9 +226,8 @@ private:
   {
     // 更新时间戳
     fixed_occupancy_grid_.header.stamp = this->now();
-    // 更新地图原点位置（相对于机器人当前位置，保持地图中心跟随机器人）
-    fixed_occupancy_grid_.info.origin.position.x = robot_x_ - map_width_ / 2.0;
-    fixed_occupancy_grid_.info.origin.position.y = robot_y_ - map_width_ / 2.0;
+    // 在base_link坐标系中，地图原点固定，机器人始终在地图中心
+    // 不需要更新原点位置，因为地图是相对于base_link坐标系的
     occupancy_grid_pub_->publish(fixed_occupancy_grid_);
   }
   

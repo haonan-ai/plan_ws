@@ -14,7 +14,7 @@ cd plan_ws
 rosdep install -r -y --from-paths ./src --ignore-src
 
 # 编译工作空间
-colcon build --symlink-installs
+colcon build --symlink-install
 source install/setup.bash
 
 # 运行
